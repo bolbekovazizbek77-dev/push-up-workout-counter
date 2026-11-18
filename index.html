@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mashq hisobi</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mut:#6b7380;--ac:#3b82f6;--ok:#16a34a;--bd:#e3e6eb;--track:#e9edf3;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--card:#1d2128;--tx:#eef0f3;--mut:#9aa3b0;--ac:#60a5fa;--ok:#4ade80;--bd:#2c323b;--track:#2a303a}}
+:root[data-theme="dark"]{--bg:#14171c;--card:#1d2128;--tx:#eef0f3;--mut:#9aa3b0;--ac:#60a5fa;--ok:#4ade80;--bd:#2c323b;--track:#2a303a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
+.big{font-size:40px;font-weight:700}
+.mut{color:var(--mut);font-size:14px}
+.bar{height:12px;background:var(--track);border-radius:8px;overflow:hidden;margin:8px 0}
+.bar i{display:block;height:100%;background:var(--ac);width:0;transition:width .3s}
+.bar.done i{background:var(--ok)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+input{font:inherit;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);min-width:0}
+input[type=number]{width:100px}
+button{font:inherit;padding:10px 14px;border:0;border-radius:10px;background:var(--ac);color:#fff;cursor:pointer}
+button.alt{background:var(--track);color:var(--tx)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.st b{display:block;font-size:22px}
+.tabs{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.tabs .sp{flex:1;text-align:center;font-weight:600}
+.chart{position:relative;height:200px;display:flex;align-items:flex-end;gap:3px;border-bottom:1px solid var(--bd);margin-top:10px;padding-top:6px}
+.chart .gl{position:absolute;left:0;right:0;border-top:1px dashed var(--mut);pointer-events:none}
+.chart .gl span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--mut)}
+.col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0}
+.col .b{width:100%;background:var(--ac);border-radius:4px 4px 0 0;min-height:0}
+.col.ok .b{background:var(--ok)}
+.col .v{font-size:10px;color:var(--mut)}
+.labels{display:flex;gap:3px;margin-top:4px}
+.labels span{flex:1;text-align:center;font-size:10px;color:var(--mut);min-width:0}
+.scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+<h1>💪 Anjumaniya hisobi</h1>
+
+<div class="card">
+  <div class="mut">Bugun</div>
+  <div><span class="big" id="today">0</span> <span class="mut">/ 100</span></div>
+  <div class="bar" id="tbar"><i></i></div>
+  <div class="mut" id="left"></div>
+  <div class="row">
+    <input type="date" id="date">
+    <input type="number" id="num" min="0" placeholder="Soni" inputmode="numeric">
+  </div>
+  <div class="row">
+    <button id="add">Qoʻshish</button>
+    <button class="alt" id="set">Belgilash</button>
+    <button class="alt" data-q="10">+10</button>
+    <button class="alt" data-q="20">+20</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="grid">
+    <div class="st"><span class="mut">Ketma-ket kunlar</span><b id="streak">0</b></div>
+    <div class="st"><span class="mut">Eng yaxshi kun</span><b id="best">0</b></div>
+    <div class="st"><span class="mut">Bu hafta jami</span><b id="wk">0</b></div>
+    <div class="st"><span class="mut">Bu oy jami</span><b id="mo">0</b></div>
+    <div class="st"><span class="mut">Maqsadga yetgan kunlar</span><b id="goal">0</b></div>
+    <div class="st"><span class="mut">Hammasi</span><b id="all">0</b></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="tabs">
+    <button class="alt" id="vw">Hafta</button>
+    <button class="alt" id="prev">‹</button>
+    <div class="sp" id="title"></div>
+    <button class="alt" id="next">›</button>
+  </div>
+  <div class="scroll"><div id="wrap">
+    <div class="chart" id="chart"></div>
+    <div class="labels" id="labels"></div>
+  </div></div>
+  <div class="mut" id="sum" style="margin-top:8px"></div>
+</div>
+</main>
+<script>
+var G=100, data={}, mode='week', off=0;
+try{data=JSON.parse(localStorage.getItem('anjumaniya')||'{}')||{}}catch(e){data={}}
+var TG=window.Telegram&&Telegram.WebApp, CS=TG&&TG.initData?TG.CloudStorage:null;
+if(TG){try{TG.ready();TG.expand();if(TG.colorScheme)document.documentElement.setAttribute('data-theme',TG.colorScheme)}catch(e){}}
+function save(k){
+  try{localStorage.setItem('anjumaniya',JSON.stringify(data))}catch(e){}
+  if(CS&&k){var ym=k.slice(0,7),o={};
+    Object.keys(data).forEach(function(d){if(d.slice(0,7)===ym&&data[d]>0)o[d]=data[d]});
+    CS.setItem('m'+ym,JSON.stringify(o),function(){});}
+}
+function saveAll(){var seen={};Object.keys(data).forEach(function(d){var ym=d.slice(0,7);if(!seen[ym]){seen[ym]=1;save(d)}})}
+function loadCloud(cb){
+  CS.getKeys(function(e,keys){
+    keys=(keys||[]).filter(function(k){return k.charAt(0)==='m'});
+    if(e||!keys.length)return cb();
+    CS.getItems(keys,function(e2,res){
+      if(!e2&&res)Object.keys(res).forEach(function(k){try{var o=JSON.parse(res[k]);Object.keys(o).forEach(function(d){data[d]=o[d]})}catch(x){}});
+      cb();
+    });
+  });
+}
+function p2(n){return String(n).padStart(2,'0')}
+function key(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())}
+function val(d){return data[key(d)]||0}
+function addDays(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x}
+function monday(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
+var $=function(i){return document.getElementById(i)};
+var DAYS=['Du','Se','Ch','Pa','Ju','Sh','Ya'];
+var MONTHS=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+var today=new Date();
+$('date').value=key(today);
+
+function render(){
+  var t=val(today);
+  $('today').textContent=t;
+  $('tbar').firstElementChild.style.width=Math.min(100,t/G*100)+'%';
+  $('tbar').className='bar'+(t>=G?' done':'');
+  $('left').textContent=t>=G?'🎉 Maqsad bajarildi!':'Maqsadgacha yana '+(G-t)+' ta qoldi';
+
+  var keys=Object.keys(data).filter(function(k){return data[k]>0});
+  var all=0,best=0,goal=0;
+  keys.forEach(function(k){var v=data[k];all+=v;if(v>best)best=v;if(v>=G)goal++});
+  var s=0,d=new Date(today);
+  if(val(d)<G)d=addDays(d,-1);
+  while(val(d)>=G){s++;d=addDays(d,-1)}
+  var m0=monday(today),wk=0;
+  for(var i=0;i<7;i++)wk+=val(addDays(m0,i));
+  var mo=0;
+  for(var j=1;j<=31;j++){var dd=new Date(today.getFullYear(),today.getMonth(),j);if(dd.getMonth()!==today.getMonth())break;mo+=val(dd)}
+  $('streak').textContent=s+' kun';$('best').textContent=best;$('wk').textContent=wk;$('mo').textContent=mo;$('goal').textContent=goal+' kun';$('all').textContent=all;
+
+  var days=[],title;
+  if(mode==='week'){
+    var st=addDays(monday(today),off*7);
+    for(var a=0;a<7;a++)days.push(addDays(st,a));
+    title=st.getDate()+' '+MONTHS[st.getMonth()].slice(0,3)+' – '+days[6].getDate()+' '+MONTHS[days[6].getMonth()].slice(0,3);
+  }else{
+    var f=new Date(today.getFullYear(),today.getMonth()+off,1);
+    for(var b=1;;b++){var x=new Date(f.getFullYear(),f.getMonth(),b);if(x.getMonth()!==f.getMonth())break;days.push(x)}
+    title=MONTHS[f.getMonth()]+' '+f.getFullYear();
+  }
+  $('title').textContent=title;
+  $('vw').textContent=mode==='week'?'Hafta':'Oy';
+  var vals=days.map(val),mx=Math.max(G,Math.max.apply(null,vals)),tot=0,ok=0;
+  vals.forEach(function(v){tot+=v;if(v>=G)ok++});
+  $('wrap').style.minWidth=mode==='month'?'560px':'0';
+  var h='<div class="gl" style="bottom:'+(G/mx*100)+'%"><span>100</span></div>';
+  var L='';
+  days.forEach(function(dy,i){
+    var v=vals[i];
+    h+='<div class="col'+(v>=G?' ok':'')+'"><div class="v">'+(v||'')+'</div><div class="b" style="height:'+(v/mx*88)+'%"></div></div>';
+    L+='<span>'+(mode==='week'?DAYS[i]+'<br>'+dy.getDate():dy.getDate())+'</span>';
+  });
+  $('chart').innerHTML=h;$('labels').innerHTML=L;
+  $('sum').textContent='Jami: '+tot+' · Oʻrtacha: '+Math.round(tot/days.length)+'/kun · Maqsad bajarilgan: '+ok+' kun';
+}
+function getDate(){var v=$('date').value;if(!v)return key(today);return v}
+function num(){var n=parseInt($('num').value,10);return isNaN(n)||n<0?null:n}
+$('add').onclick=function(){var n=num();if(n===null)return;var k=getDate();data[k]=(data[k]||0)+n;$('num').value='';save(k);render()};
+$('set').onclick=function(){var n=num();if(n===null)return;data[getDate()]=n;$('num').value='';save(getDate());render()};
+document.querySelectorAll('[data-q]').forEach(function(b){b.onclick=function(){var k=getDate();data[k]=(data[k]||0)+parseInt(b.dataset.q,10);save(k);render()}});
+$('vw').onclick=function(){mode=mode==='week'?'month':'week';off=0;render()};
+$('prev').onclick=function(){off--;render()};
+$('next').onclick=function(){if(off<0)off++;render()};
+render();
+if(CS)loadCloud(function(){saveAll();render()});
+</script>
+</body>
+</html>
